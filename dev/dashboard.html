@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Galaxy Dashboard - Budget Planner</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap');
+
+    html, body {
+      margin:0;
+      padding:0;
+      font-family:'Poppins',sans-serif;
+      background: radial-gradient(circle at 20% 20%, #110523, #04020a);
+      color:#fff;
+      min-height:100vh;
+      overflow-x:hidden;
+    }
+
+    canvas#stars {
+      position:fixed;
+      top:0;
+      left:0;
+      width:100%;
+      height:100%;
+      z-index:0;
+      pointer-events:none;
+    }
+
+    .container {
+      position:relative;
+      z-index:1;
+      max-width:800px;
+      margin:20px auto;
+      padding:20px;
+    }
+
+    h2 {
+      font-size:26px;
+      font-weight:800;
+      text-shadow: 0 0 12px #9d50bb, 0 0 18px #6e48aa;
+    }
+
+    h3 {
+      font-size:20px;
+      margin-top:30px;
+      font-weight:700;
+      color:#ffd1ff;
+    }
+
+    .form-grid {
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px,1fr));
+      gap:14px;
+      margin-top:10px;
+    }
+
+    .form-grid input, .form-grid select {
+      padding:10px;
+      border-radius:12px;
+      border:none;
+      background: rgba(0,0,0,0.5);
+      color:#fff;
+      font-weight:600;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    /* dropdown arrow color */
+    .form-grid select {
+      background-image: linear-gradient(45deg, transparent 50%, #fff 50%),
+                        linear-gradient(135deg, #fff 50%, transparent 50%),
+                        linear-gradient(to right, rgba(255,255,255,0.2), rgba(255,255,255,0.2));
+      background-position: calc(100% - 20px) calc(50% - 5px),
+                           calc(100% - 15px) calc(50% - 5px),
+                           0 0;
+      background-size: 5px 5px, 5px 5px, 100% 100%;
+      background-repeat: no-repeat;
+    }
+
+    .button-row {
+      margin-top:14px;
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+
+    .button-row button {
+      padding:10px 16px;
+      border-radius:12px;
+      border:none;
+      font-weight:700;
+      cursor:pointer;
+      transition:0.25s;
+      background: linear-gradient(90deg, #9d50bb, #6e48aa);
+      color:#fff;
+      box-shadow:0 0 18px rgba(157,80,187,0.55);
+    }
+    .button-row button:hover { transform:translateY(-3px); box-shadow:0 0 28px rgba(157,80,187,0.7); }
+
+  </style>
+</head>
+
+<body>
+  <canvas id="stars"></canvas>
+
+  <div class="container">
+    <h2>Welcome, <span id="userName"></span></h2>
+    <h3>Add Budget Entry</h3>
+
+    <div class="form-grid">
+      <select id="type">
+        <option value="Income">Income</option>
+        <option value="Expense">Expense</option>
+      </select>
+      <input type="number" id="amount" placeholder="Base Amount" />
+      <input type="text" id="desc" placeholder="Description" />
+      <select id="month">
+        <option>January</option><option>February</option><option>March</option>
+        <option>April</option><option>May</option><option>June</option>
+        <option>July</option><option>August</option><option>September</option>
+        <option>October</option><option>November</option><option>December</option>
+      </select>
+      <select id="year"></select>
+      <input type="number" id="mistake" placeholder="Mistake Deduction" />
+      <input type="number" id="dayoff" placeholder="Day Off (days)" />
+      <input type="number" id="system" placeholder="System Deduction" />
+      <input type="number" id="loan" placeholder="Loan Deduction" />
+      <input type="number" id="bonus" placeholder="Bonus" />
+    </div>
+
+    <div class="button-row">
+      <button onclick="saveEntry()">Save Entry</button>
+      <button onclick="goToSummary()">View Summary</button>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <script src="dataStore.js"></script>
+  <script>
+    const currentUser = localStorage.getItem("lastUser");
+    if(!currentUser) window.location.href = "../login.html";
+    document.getElementById("userName").innerText = currentUser;
+
+    // Year dropdown
+    const yearSelect = document.getElementById("year");
+    const currentYear = new Date().getFullYear();
+    for(let y=currentYear-5;y<=currentYear+5;y++){
+      const opt = document.createElement("option");
+      opt.value=y; opt.textContent=y;
+      if(y===currentYear) opt.selected=true;
+      yearSelect.appendChild(opt);
+    }
+
+    function saveEntry(){
+      // properly fetch elements
+      const type = document.getElementById("type").value;
+      const amount = parseFloat(document.getElementById("amount").value)||0;
+      const desc = document.getElementById("desc").value;
+      const month = document.getElementById("month").value;
+      const year = parseInt(document.getElementById("year").value);
+      const mistake = parseFloat(document.getElementById("mistake").value)||0;
+      const dayoffDays = parseFloat(document.getElementById("dayoff").value)||0;
+      const system = parseFloat(document.getElementById("system").value)||0;
+      const loan = parseFloat(document.getElementById("loan").value)||0;
+      const bonus = parseFloat(document.getElementById("bonus").value)||0;
+
+      const dayoffValue = (amount/30)*dayoffDays;
+      const deductions = mistake + dayoffValue + system + loan;
+      const netAmount = type==='Income'?amount-deductions+bonus:amount;
+
+      const entry = {
+        type, originalAmount: amount, netAmount, desc,
+        month, year, mistake, dayoff: dayoffDays, system, loan, bonus
+      };
+
+      // save to dataStore.js
+      addEntryForUser(currentUser, entry);
+
+      alert("Entry saved!");
+
+      // reset form
+      document.querySelectorAll(".form-grid input").forEach(i=>i.value="");
+      document.querySelectorAll(".form-grid select").forEach(s=>s.selectedIndex=0);
+    }
+
+    function goToSummary(){ window.location.href="summary.html"; }
+    function logout(){ localStorage.removeItem("lastUser"); window.location.href="../login.html"; }
+
+    // ----- Stars Animation -----
+    const starsCanvas=document.getElementById("stars");
+    const ctx=starsCanvas.getContext("2d");
+    let stars=[];
+    function initStars(){
+      starsCanvas.width=window.innerWidth;
+      starsCanvas.height=window.innerHeight;
+      stars=[];
+      for(let i=0;i<150;i++){
+        stars.push({x:Math.random()*window.innerWidth, y:Math.random()*window.innerHeight, r:Math.random()*1.5+0.3, dx:(Math.random()-0.5)/1.5, dy:(Math.random()-0.5)/1.5});
+      }
+    }
+    let mouse={x:0,y:0,hovering:false};
+    starsCanvas.addEventListener("mousemove", e=>{mouse.x=e.clientX; mouse.y=e.clientY; mouse.hovering=true;});
+    starsCanvas.addEventListener("mouseleave", ()=>{mouse.hovering=false;});
+    window.addEventListener("resize", initStars);
+    function drawStars(){
+      ctx.clearRect(0,0,starsCanvas.width,starsCanvas.height);
+      stars.forEach(s=>{
+        ctx.beginPath();
+        ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+        ctx.fillStyle="#fff"; ctx.fill(); ctx.closePath();
+        if(mouse.hovering){
+          const dx=s.x-mouse.x;
+          const dy=s.y-mouse.y;
+          const dist=Math.sqrt(dx*dx+dy*dy);
+          const R=160;
+          if(dist<R){
+            const angle=Math.atan2(dy,dx);
+            const force=(R-dist)/6;
+            s.x+=Math.cos(angle)*force; s.y+=Math.sin(angle)*force;
+          }
+        }
+        s.x+=s.dx; s.y+=s.dy;
+        if(s.x<0)s.x=window.innerWidth; if(s.x>window.innerWidth)s.x=0;
+        if(s.y<0)s.y=window.innerHeight; if(s.y>window.innerHeight)s.y=0;
+      });
+      requestAnimationFrame(drawStars);
+    }
+    initStars(); drawStars();
+  </script>
+</body>
+</html>

@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Login — Budget Planner (Purple Galaxy)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg-deep:#05020b;
+    --nebula-1:#3b0b6f;
+    --nebula-2:#7a1fa6;
+    --nebula-3:#2b7cff;
+    --glass: rgba(255,255,255,0.06);
+    --accent: #7ad7ff;
+    --accent-2:#a36bff;
+    --text:#e8eef8;
+    --muted: rgba(232,238,248,0.75);
+    --glow: 0 10px 50px rgba(122,31,166,0.12);
+  }
+
+  /* Reset + layout */
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:'Poppins',system-ui,Segoe UI,Roboto,Arial;
+    background: radial-gradient(1200px 600px at 10% 20%, rgba(58,10,93,0.6), transparent 10%),
+                radial-gradient(1200px 600px at 90% 80%, rgba(20,50,255,0.08), transparent 10%),
+                var(--bg-deep);
+    color:var(--text);
+    display:flex;align-items:center;justify-content:center;
+    padding:40px;
+    overflow:hidden;
+  }
+
+  /* Fullscreen canvases behind */
+  canvas#nebula, canvas#stars {
+    position:fixed; inset:0; width:100%; height:100%; z-index:0; pointer-events:none;
+    display:block;
+  }
+
+  /* Container (premium glass card) */
+  .login-wrap{
+    position:relative; z-index:5;
+    width:420px;
+    max-width:95%;
+    border-radius:18px;
+    padding:34px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+    border: 1px solid rgba(163,107,255,0.12);
+    box-shadow: var(--glow), 0 8px 30px rgba(0,0,0,0.6);
+    backdrop-filter: blur(14px) saturate(120%);
+    transform-style:preserve-3d;
+    transition: transform .45s cubic-bezier(.2,.9,.2,1), box-shadow .45s;
+    overflow:hidden;
+  }
+  .login-wrap:hover { transform: translateY(-8px) scale(1.01); box-shadow: 0 30px 80px rgba(120,40,200,0.18); }
+
+  .brand {
+    display:flex; align-items:center; gap:12px; margin-bottom:12px;
+  }
+  .logo {
+    font-size:30px; font-weight:800;
+    padding:8px 12px; border-radius:10px;
+    background: linear-gradient(90deg,var(--accent-2),var(--accent));
+    color:#030313; box-shadow: 0 6px 30px rgba(122,31,166,0.2);
+  }
+  .title { font-size:18px; font-weight:800; color:var(--text) }
+  .subtitle { font-size:12px; color:var(--muted); margin-top:2px }
+
+  /* Username big display (animated) */
+  #userBanner {
+    margin:14px 0 20px;
+    padding:12px 16px;
+    border-radius:12px;
+    font-weight:800;
+    font-size:18px;
+    display:flex; align-items:center; gap:10px;
+    justify-content:center;
+    color:#001; /* text overridden by gradient clip */
+    background: linear-gradient(90deg,#74e3ff 0%, #8ba5ff 30%, #c085ff 60%, #74e3ff 100%);
+    background-size: 300% 100%;
+    -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;
+    animation: bannerShift 4s linear infinite;
+    text-shadow: 0 6px 18px rgba(120,40,200,0.12);
+  }
+  @keyframes bannerShift {
+    0% { background-position:0% 50% }
+    50% { background-position:100% 50% }
+    100% { background-position:0% 50% }
+  }
+
+  /* Advice typing text */
+  .advice {
+    font-weight:700; color:var(--accent);
+    text-shadow: 0 0 8px rgba(122,31,166,0.12);
+    min-height:28px; margin-bottom:18px;
+    font-size:13px;
+    white-space:nowrap; overflow:hidden; border-right:2px solid rgba(122,215,255,0.9);
+    animation: blinkCursor 1s steps(2) infinite;
+  }
+  @keyframes blinkCursor{50%{border-color:transparent} }
+
+  /* Inputs */
+  .field{
+    margin-bottom:12px; position:relative;
+  }
+  input[type="text"], input[type="password"]{
+    width:100%; padding:14px 14px; border-radius:12px; border:none;
+    background: linear-gradient(180deg, rgba(20,18,30,0.7), rgba(12,8,20,0.6));
+    color:var(--text); font-weight:600; font-size:15px;
+    box-shadow: inset 0 -4px 12px rgba(0,0,0,0.6);
+    transition: box-shadow .25s, transform .18s;
+  }
+  input::placeholder{ color: rgba(232,238,248,0.45); font-weight:600 }
+
+  input:focus{
+    outline:none;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(122,31,166,0.18), inset 0 2px 8px rgba(122,31,166,0.06);
+  }
+
+  /* Buttons */
+  .btn{
+    width:100%; padding:13px 14px; border-radius:12px; border:0; cursor:pointer;
+    font-weight:800; letter-spacing:0.6px; font-size:15px; margin-top:8px;
+    color:#031028;
+    background: linear-gradient(90deg, rgba(122,31,166,1), rgba(122,200,255,1));
+    box-shadow: 0 10px 40px rgba(122,31,166,0.12);
+    transition: transform .18s, box-shadow .18s, filter .18s;
+  }
+  .btn:hover{ transform: translateY(-4px); filter:brightness(1.05); box-shadow:0 18px 60px rgba(122,31,166,0.18) }
+
+  .btn.secondary{
+    background: transparent;
+    color:var(--text);
+    border:1px solid rgba(255,255,255,0.06);
+    box-shadow:none;
+  }
+  .create-wrap{ margin-top:14px; display:none; }
+
+  .small{
+    font-size:12px; color:var(--muted); margin-top:10px;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .footer{
+    margin-top:12px;font-size:12px;color:rgba(232,238,248,0.5)
+  }
+
+  /* tiny indicator under inputs */
+  .hint{ font-size:12px; color: rgba(232,238,248,0.45); margin-top:6px }
+
+  /* Nebula / card lightning edge glow */
+  .login-wrap::before{
+    content:""; position:absolute; inset:-2px; z-index:-1; border-radius:20px;
+    background: linear-gradient(90deg, rgba(123,33,162,0.06), rgba(46,200,255,0.03));
+    filter: blur(18px); opacity:0.9; transition:opacity .4s;
+  }
+
+  /* lightning edge animation around card on hover */
+  .login-wrap:hover::after{
+    content:""; position:absolute; inset:-4px; border-radius:22px; z-index:-2;
+    background: conic-gradient(from 120deg at 50% 50%, rgba(163,107,255,0.25), rgba(122,215,255,0.25), rgba(163,107,255,0.25));
+    filter: blur(14px); opacity:1; animation: edgePulse 1.8s linear infinite;
+  }
+  @keyframes edgePulse{
+    0%{transform:scale(1); opacity:0.6}
+    50%{transform:scale(1.03); opacity:1}
+    100%{transform:scale(1); opacity:0.6}
+  }
+
+  /* responsive */
+  @media (max-width:520px){
+    .login-wrap{ padding:20px }
+    #userBanner{ font-size:16px; padding:10px }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nebula background canvas (painted with gradient blobs) -->
+<canvas id="nebula"></canvas>
+<!-- Starfield (small twinkling stars) -->
+<canvas id="stars"></canvas>
+
+<div class="login-wrap" role="main" aria-labelledby="loginTitle">
+  <div class="brand">
+    <div class="logo">💫</div>
+    <div>
+      <div class="title" id="loginTitle">Budget Planner</div>
+      <div class="subtitle">Purple Galaxy / Cosmic Nebula</div>
+    </div>
+  </div>
+
+  <!-- Animated username banner (visible when lastUser set) -->
+  <div id="userBanner" style="display:none" aria-hidden="true"></div>
+
+  <div id="financialAdvice" class="advice" aria-live="polite"></div>
+
+  <div class="field"><input id="username" type="text" placeholder="Username" autocomplete="username"></div>
+  <div class="field"><input id="password" type="password" placeholder="Password" autocomplete="current-password"></div>
+
+  <button class="btn" id="loginBtn">Login</button>
+  <button class="btn secondary" id="toggleCreateBtn">Create account</button>
+
+  <div class="create-wrap" id="createWrap" aria-hidden="true">
+    <div class="field"><input id="newUsername" type="text" placeholder="New username"></div>
+    <div class="field"><input id="newPassword" type="password" placeholder="New password"></div>
+    <button class="btn" id="saveUserBtn">Save user</button>
+  </div>
+
+  <div class="small">
+    <div class="hint">Secure • Local only (stored in browser)</div>
+    <div class="hint" id="helpText">Need help?</div>
+  </div>
+
+  <div class="footer">© 2025 Budget Planner</div>
+</div>
+
+<script>
+/* ----------------------------
+  Nebula + starfield rendering
+   - nebula canvas: layered moving gradient blobs
+   - stars canvas: twinkling stars, subtle drift, mouse parallax
+----------------------------*/
+const nebula = document.getElementById('nebula');
+const nebCtx = nebula.getContext('2d');
+const starsCanvas = document.getElementById('stars');
+const starCtx = starsCanvas.getContext('2d');
+
+let width = innerWidth, height = innerHeight;
+function resizeCanvases(){
+  width = nebula.width = starsCanvas.width = innerWidth;
+  height = nebula.height = starsCanvas.height = innerHeight;
+}
+window.addEventListener('resize', resizeCanvases);
+resizeCanvases();
+
+/* Nebula blobs */
+const blobs = [
+  {x: width*0.15, y: height*0.2, r: Math.max(width,height)*0.45, color: 'rgba(58,10,93,0.6)'},
+  {x: width*0.85, y: height*0.8, r: Math.max(width,height)*0.45, color: 'rgba(45,15,140,0.45)'},
+  {x: width*0.5, y: height*0.55, r: Math.max(width,height)*0.6, color: 'rgba(40,120,255,0.09)'}
+];
+
+function drawNebula(t){
+  nebCtx.clearRect(0,0,width,height);
+  // animate blob positions slightly
+  blobs.forEach((b, i)=>{
+    const ox = Math.cos((t*0.0002) + i) * 40;
+    const oy = Math.sin((t*0.00017) + i*1.5) * 40;
+    const grad = nebCtx.createRadialGradient(b.x+ox, b.y+oy, b.r*0.08, b.x+ox, b.y+oy, b.r);
+    grad.addColorStop(0, b.color);
+    grad.addColorStop(0.35, b.color.replace('0.','0.12'));
+    grad.addColorStop(1, 'rgba(10,5,20,0)');
+    nebCtx.fillStyle = grad;
+    nebCtx.globalCompositeOperation = 'screen';
+    nebCtx.fillRect(0,0,width,height);
+  });
+  nebCtx.globalCompositeOperation = 'source-over';
+}
+
+/* Stars */
+const starCount = Math.min(420, Math.floor((width*height)/6000));
+let stars = [];
+let mouse = {x: -9999, y: -9999};
+
+function initStars(){
+  stars = [];
+  for(let i=0;i<starCount;i++){
+    stars.push({
+      x: Math.random()*width,
+      y: Math.random()*height,
+      r: Math.random()*1.6 + 0.2,
+      baseX: 0, baseY: 0,
+      driftX: (Math.random()-0.5)*0.05,
+      driftY: (Math.random()-0.5)*0.05,
+      twinkleOffset: Math.random()*6000
+    });
+    stars[i].baseX = stars[i].x;
+    stars[i].baseY = stars[i].y;
+  }
+}
+initStars();
+
+window.addEventListener('mousemove', (e)=>{ mouse.x = e.clientX; mouse.y = e.clientY; });
+window.addEventListener('mouseout', ()=>{ mouse.x = -9999; mouse.y = -9999; });
+
+function drawStars(t){
+  starCtx.clearRect(0,0,width,height);
+  starCtx.globalCompositeOperation = 'lighter';
+  for(const s of stars){
+    // always drifting slowly
+    s.baseX += s.driftX;
+    s.baseY += s.driftY;
+    // wrap
+    if(s.baseX < 0) s.baseX = width;
+    if(s.baseX > width) s.baseX = 0;
+    if(s.baseY < 0) s.baseY = height;
+    if(s.baseY > height) s.baseY = 0;
+
+    // twinkle
+    const tw = 0.6 + 0.4 * Math.sin((t + s.twinkleOffset) * 0.004 + s.r*10);
+
+    // magnetic aura: only affect stars within a radius
+    const mx = mouse.x, my = mouse.y;
+    let dx = mx - s.baseX, dy = my - s.baseY;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const aura = 160; // size of "space around cursor"
+    let ox = 0, oy = 0;
+    if(dist < aura){
+      // stronger pull closer to cursor, but capped
+      const f = (1 - (dist / aura)) * 12;
+      // direction slightly tangent for a subtle orbiting feel
+      const angle = Math.atan2(dy, dx) + Math.PI/2;
+      ox = Math.cos(angle) * f;
+      oy = Math.sin(angle) * f;
+    }
+
+    // draw star at base pos + offset
+    starCtx.beginPath();
+    starCtx.arc(s.baseX + ox, s.baseY + oy, s.r * (0.7 + tw*0.7), 0, Math.PI*2);
+    // color slight purple-blue gradient
+    const grad = starCtx.createRadialGradient(s.baseX + ox, s.baseY + oy, 0, s.baseX + ox, s.baseY + oy, s.r*6);
+    grad.addColorStop(0, 'rgba(255,255,255,'+ (0.9*tw) +')');
+    grad.addColorStop(0.4, 'rgba(180,200,255,'+ (0.12*tw) +')');
+    grad.addColorStop(1, 'rgba(120,60,180,0)');
+    starCtx.fillStyle = grad;
+    starCtx.fill();
+  }
+  starCtx.globalCompositeOperation = 'source-over';
+}
+
+/* animation loop */
+let start = performance.now();
+function animate(now){
+  const t = now || performance.now();
+  drawNebula(t);
+  drawStars(t);
+  requestAnimationFrame(animate);
+}
+requestAnimationFrame(animate);
+
+/* ----------------------------
+  Form logic (localStorage users)
+----------------------------*/
+const users = JSON.parse(localStorage.getItem('users') || '{}');
+const loginBtn = document.getElementById('loginBtn');
+const toggleCreateBtn = document.getElementById('toggleCreateBtn');
+const createWrap = document.getElementById('createWrap');
+const saveUserBtn = document.getElementById('saveUserBtn');
+const userBanner = document.getElementById('userBanner');
+const adviceEl = document.getElementById('financialAdvice');
+
+function showBannerForLastUser(){
+  const last = localStorage.getItem('lastUser');
+  if(last){
+    userBanner.style.display = 'flex';
+    userBanner.setAttribute('aria-hidden','false');
+    userBanner.textContent = `Welcome back — ${last}`;
+  } else {
+    userBanner.style.display = 'none';
+    userBanner.setAttribute('aria-hidden','true');
+  }
+}
+showBannerForLastUser();
+
+// typing advice
+const adviceList = [
+  "💡 Track small wins — compound them.",
+  "💫 Save first, spend next. Consistency wins.",
+  "📈 Invest spare change — future you will thank you.",
+  "🔒 Secure your budget. Reclaim control."
+];
+let advIndex=0, advChar=0, advDel=false;
+function typeAdvice(){
+  const cur = adviceList[advIndex];
+  if(!advDel){
+    adviceEl.textContent = cur.substring(0, advChar++);
+    if(advChar > cur.length + 6){ advDel = true; setTimeout(typeAdvice,1200); return; }
+  } else {
+    advElText = adviceEl.textContent;
+    adviceEl.textContent = cur.substring(0, advChar--);
+    if(advChar < 0){ advDel=false; advIndex = (advIndex+1)%adviceList.length; advChar=0; }
+  }
+  setTimeout(typeAdvice, advDel?40:60);
+}
+typeAdvice();
+
+// login behavior
+function login(){
+  const user = document.getElementById('username').value.trim();
+  const pass = document.getElementById('password').value;
+  if(!user || !pass){ alert('Please enter username & password'); return; }
+  const stored = JSON.parse(localStorage.getItem('users') || '{}');
+  if(stored[user] && stored[user] === pass){
+    localStorage.setItem('lastUser', user);
+    showBannerForLastUser();
+    // redirect to dashboard (existing path)
+    window.location.href = 'dev/dashboard.html';
+  } else {
+    alert('Invalid username or password');
+  }
+}
+loginBtn.addEventListener('click', login);
+
+// toggle create
+toggleCreateBtn.addEventListener('click', ()=>{
+  const open = createWrap.style.display === 'block';
+  createWrap.style.display = open ? 'none' : 'block';
+  createWrap.setAttribute('aria-hidden', open ? 'true' : 'false');
+});
+
+// save new user
+saveUserBtn.addEventListener('click', ()=>{
+  const newUser = document.getElementById('newUsername').value.trim();
+  const newPass = document.getElementById('newPassword').value;
+  if(!newUser || !newPass){ alert('Please fill both fields'); return; }
+  const stored = JSON.parse(localStorage.getItem('users') || '{}');
+  if(stored[newUser]){ alert('Username exists'); return; }
+  stored[newUser] = newPass;
+  localStorage.setItem('users', JSON.stringify(stored));
+  alert('User created — you can now log in');
+  document.getElementById('newUsername').value = '';
+  document.getElementById('newPassword').value = '';
+  createWrap.style.display = 'none';
+});
+
+// allow Enter key for login
+document.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){
+    const active = document.activeElement;
+    // if inside create wrap and save inputs filled, save; otherwise login
+    if(createWrap.style.display === 'block' && (active.id === 'newUsername' || active.id === 'newPassword')) {
+      saveUserBtn.click();
+    } else {
+      loginBtn.click();
+    }
+  }
+});
+
+// helpful: prefill username from lastUser (optional)
+const lastUser = localStorage.getItem('lastUser');
+if(lastUser) document.getElementById('username').value = lastUser;
+
+// expose login function for button attribute compatibility if needed
+window.login = login;
+</script>
+</body>
+</html>
