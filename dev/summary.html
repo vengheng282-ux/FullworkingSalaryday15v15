@@ -9,7 +9,6 @@
 <style>
 :root{
   --bg1:#04020a; --bg2:#110523;
-  --glass:rgba(18,14,28,0.86);
   --glass-strong:rgba(24,18,40,0.96);
   --muted:#e6eef6; --muted-2:rgba(230,238,246,0.85);
   --accent-a:#9d50bb; --accent-b:#6e48aa;
@@ -18,7 +17,6 @@
 }
 html,body{margin:0;height:100%;font-family:'Poppins',sans-serif;color:var(--muted);background:radial-gradient(800px 600px at 10% 10%,var(--bg2),var(--bg1));overflow:auto;}
 canvas#stars{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;}
-#asteroidLayer{position:fixed;inset:0;z-index:1;pointer-events:none;overflow:visible;}
 .wrap{position:relative;z-index:2;max-width:1150px;margin:28px auto;padding:22px;box-sizing:border-box;}
 h1{margin:0;font-size:26px;font-weight:800;color:#fff;text-shadow:0 4px 18px rgba(0,0,0,0.6);}
 #usernameDisplay{font-size:18px;font-weight:800;padding:8px 14px;border-radius:12px;background:linear-gradient(120deg,#a2a0ff,#6ee0ff,#a566ff,#ffd1ff);-webkit-background-clip:text;background-clip:text;color:transparent;animation: usernameShift 6s linear infinite;}
@@ -57,7 +55,6 @@ h1{margin:0;font-size:26px;font-weight:800;color:#fff;text-shadow:0 4px 18px rgb
 .btn.del{background:linear-gradient(90deg,var(--neg),#ff3b3b);color:white;}
 .chart-wrap{margin-top:20px;padding:12px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.01));border-radius:12px;border:1px solid rgba(255,255,255,0.03);}
 
-/* ---- Back to Dashboard button animation ---- */
 .backBtn{
   padding:10px 18px;
   font-weight:800;
@@ -81,7 +78,6 @@ h1{margin:0;font-size:26px;font-weight:800;color:#fff;text-shadow:0 4px 18px rgb
 </head>
 <body>
 <canvas id="stars"></canvas>
-<div id="asteroidLayer"></div>
 <div class="wrap">
   <div class="top-row" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
     <h1>Summary</h1>
@@ -94,32 +90,91 @@ h1{margin:0;font-size:26px;font-weight:800;color:#fff;text-shadow:0 4px 18px rgb
   <div class="chart-wrap"><canvas id="statChart" width="800" height="260"></canvas></div>
 </div>
 
-<script src="dataStore.js"></script>
+<!-- If you have your own dataStore.js, include it BEFORE this script tag in your project.
+     This page will still run because of the fallback definitions below. -->
 <script>
-const USER_KEY = localStorage.getItem('lastUser') || 'User';
-document.getElementById('usernameDisplay').textContent = USER_KEY;
+/* -------------------------
+   Fallback dataStore (only created if not provided)
+   functions required by the page:
+     - getEntriesForUser(username) -> returns array of entries
+     - updateEntryForUser(username, idx, entry)
+     - deleteEntryForUser(username, idx)
+     - setEntriesForUser(username, entries)  (helper)
+   Entry shape example:
+   { type: 'Income', month:'Jan', year:2025, originalAmount:1000, mistake:0, dayoff:0, system:0, loan:0, bonus:0 }
+   ------------------------- */
+(function(){
+  if (typeof getEntriesForUser !== 'undefined') return; // your dataStore.js exists
 
-function daysInMonth(monthName, year){const d=new Date(`${monthName} 1, ${year}`);return isNaN(d)?30:new Date(year,d.getMonth()+1,0).getDate();}
-function formatCurrency(val){return `$${Number(val||0).toFixed(2)}`;}
+  const KEY = 'budgetEntriesByUser';
+  function _readAll(){
+    try { return JSON.parse(localStorage.getItem(KEY) || '{}'); }
+    catch(e){ return {}; }
+  }
+  function _writeAll(obj){
+    localStorage.setItem(KEY, JSON.stringify(obj));
+  }
+  window.getEntriesForUser = function(user){
+    const all = _readAll();
+    if (!all[user]) {
+      // seed example data for convenience:
+      all[user] = [
+        {type:'Income', month:'Jan', year:new Date().getFullYear(), originalAmount:1200, mistake:20, dayoff:1, system:0, loan:0, bonus:50},
+        {type:'Income', month:'Feb', year:new Date().getFullYear(), originalAmount:1400, mistake:0, dayoff:0, system:0, loan:100, bonus:0},
+        {type:'Expense', month:'Mar', year:new Date().getFullYear(), originalAmount:200, mistake:0, dayoff:0, system:0, loan:0, bonus:0}
+      ];
+      _writeAll(all);
+    }
+    return all[user];
+  };
+  window.setEntriesForUser = function(user, entries){
+    const all = _readAll(); all[user] = entries; _writeAll(all);
+  };
+  window.updateEntryForUser = function(user, idx, entry){
+    const arr = getEntriesForUser(user);
+    arr[idx] = entry;
+    setEntriesForUser(user, arr);
+  };
+  window.deleteEntryForUser = function(user, idx){
+    const arr = getEntriesForUser(user);
+    arr.splice(idx,1);
+    setEntriesForUser(user, arr);
+  };
+})();
+</script>
+
+<script>
+/* -------------------------
+   Main page script
+   ------------------------- */
+const USER_KEY = localStorage.getItem('lastUser') || 'User';
+document.getElementById('usernameDisplay').innerHTML = `<span>${USER_KEY}</span>`;
+
+function daysInMonth(monthName, year){
+  const d = new Date(`${monthName} 1, ${year}`);
+  return isNaN(d) ? 30 : new Date(year, d.getMonth()+1, 0).getDate();
+}
+function formatCurrency(val){ return `$${Number(val||0).toFixed(2)}`; }
 
 const cardsEl = document.getElementById('cards');
+
 function renderCards(entries){
   cardsEl.innerHTML = '';
-  entries.forEach((e,idx)=>{
-    const base = Number(e.originalAmount)||0;
-    const mistake = Number(e.mistake)||0;
-    const dayoff = Number(e.dayoff)||0;
-    const system = Number(e.system)||0;
-    const loan = Number(e.loan)||0;
-    const bonus = Number(e.bonus)||0;
-    const month = e.month||'Jan';
-    const year = Number(e.year)||new Date().getFullYear();
-    const mdays = daysInMonth(month,year);
-    const daySalary = base/mdays;
-    const hourSalary = daySalary/8;
-    const dayOffDeduction = daySalary*dayoff;
+  entries.forEach((e, idx) => {
+    const base = Number(e.originalAmount || 0);
+    const mistake = Number(e.mistake || 0);
+    const dayoff = Number(e.dayoff || 0);
+    const system = Number(e.system || 0);
+    const loan = Number(e.loan || 0);
+    const bonus = Number(e.bonus || 0);
+    const month = e.month || 'Jan';
+    const year = Number(e.year) || new Date().getFullYear();
+    const mdays = daysInMonth(month, year) || 30;
+    const daySalary = mdays ? (base / mdays) : 0;
+    const hourSalary = daySalary / 8;
+    const dayOffDeduction = daySalary * dayoff;
     const deduction = mistake + dayOffDeduction + system + loan;
-    const net = (e.type==='Income')?base-deduction+bonus:-base;
+    const net = (e.type === 'Income') ? base - deduction + bonus : -base;
 
     const cardHTML = `
       <div class="card" data-idx="${idx}">
@@ -137,33 +192,34 @@ function renderCards(entries){
           <div class="label">Hour Salary</div><div class="val">${formatCurrency(hourSalary)}<div class="sub">per hr</div></div>
           <div class="label">Net</div><div class="val ${net>=0?'green':'red'}">${formatCurrency(net)}</div>
         </div>
-      </div>`;
-    cardsEl.insertAdjacentHTML('beforeend',cardHTML);
+      </div>
+    `;
+    cardsEl.insertAdjacentHTML('beforeend', cardHTML);
   });
 }
 
 function renderOverview(entries){
-  const income = entries.filter(e=>e.type==='Income').reduce((a,b)=>a+Number(b.originalAmount||0),0);
-  const deductions = entries.reduce((a,b)=>{
+  const income = entries.filter(e => e.type === 'Income').reduce((a,b) => a + Number(b.originalAmount||0), 0);
+  const deductions = entries.reduce((a,b) => {
     const base = Number(b.originalAmount)||0;
     const mistake = Number(b.mistake)||0;
     const dayoff = Number(b.dayoff)||0;
     const system = Number(b.system)||0;
     const loan = Number(b.loan)||0;
-    const daySalary = base/daysInMonth(b.month,b.year);
+    const daySalary = base / daysInMonth(b.month, b.year);
     return a + mistake + dayoff*daySalary + system + loan;
-  },0);
-  const bonus = entries.reduce((a,b)=>a+Number(b.bonus||0),0);
-  const net = entries.reduce((a,b)=>{
+  }, 0);
+  const bonus = entries.reduce((a,b) => a + Number(b.bonus||0), 0);
+  const net = entries.reduce((a,b) => {
     const base = Number(b.originalAmount)||0;
     const mistake = Number(b.mistake)||0;
     const dayoff = Number(b.dayoff)||0;
     const system = Number(b.system)||0;
     const loan = Number(b.loan)||0;
-    const daySalary = base/daysInMonth(b.month,b.year);
+    const daySalary = base / daysInMonth(b.month, b.year);
     const deduction = mistake + dayoff*daySalary + system + loan;
-    return a + ((b.type==='Income')?base-deduction+Number(b.bonus||0):-base);
-  },0);
+    return a + ((b.type === 'Income') ? base - deduction + Number(b.bonus||0) : -base);
+  }, 0);
 
   const overviewEl = document.getElementById('overview');
   overviewEl.innerHTML = `
@@ -174,114 +230,160 @@ function renderOverview(entries){
   `;
 }
 
-let chartInstance=null;
+let chartInstance = null;
 function renderChart(entries){
   const ctx = document.getElementById('statChart').getContext('2d');
-  const labels = entries.map(e=>`${e.month} ${e.year}`);
-  const dataIncome = entries.map(e=>Number(e.originalAmount||0));
-  const dataDeduction = entries.map(e=>{
+  const labels = entries.map(e => `${e.month} ${e.year}`);
+  const dataIncome = entries.map(e => Number(e.originalAmount||0));
+  const dataDeduction = entries.map(e => {
     const base = Number(e.originalAmount)||0;
     const mistake = Number(e.mistake)||0;
     const dayoff = Number(e.dayoff)||0;
     const system = Number(e.system)||0;
     const loan = Number(e.loan)||0;
-    const daySalary = base/daysInMonth(e.month,e.year);
-    return mistake+dayoff*daySalary+system+loan;
+    const daySalary = base / daysInMonth(e.month, e.year);
+    return mistake + dayoff*daySalary + system + loan;
   });
-  const dataBonus = entries.map(e=>Number(e.bonus||0));
-  const dataNet = entries.map(e=>{
+  const dataBonus = entries.map(e => Number(e.bonus||0));
+  const dataNet = entries.map(e => {
     const base = Number(e.originalAmount)||0;
     const mistake = Number(e.mistake)||0;
     const dayoff = Number(e.dayoff)||0;
     const system = Number(e.system)||0;
     const loan = Number(e.loan)||0;
-    const daySalary = base/daysInMonth(e.month,e.year);
-    const deduction = mistake+dayoff*daySalary+system+loan;
-    return (e.type==='Income')?base-deduction+Number(e.bonus||0):-base;
+    const daySalary = base / daysInMonth(e.month, e.year);
+    const deduction = mistake + dayoff*daySalary + system + loan;
+    return (e.type === 'Income') ? base - deduction + Number(e.bonus||0) : -base;
   });
 
-  if(chartInstance) chartInstance.destroy();
-  chartInstance=new Chart(ctx,{
-    type:'bar',
-    data:{labels,datasets:[
-      {label:'Income',data:dataIncome,backgroundColor:'#4dff88',borderRadius:8},
-      {label:'Deductions',data:dataDeduction,backgroundColor:'#ff6b6b',borderRadius:8},
-      {label:'Bonus',data:dataBonus,backgroundColor:'#ffd700',borderRadius:8},
-      {label:'Net',data:dataNet,backgroundColor:'#9d50bb',borderRadius:8}
-    ]},
-    options:{responsive:true,plugins:{legend:{display:true}},scales:{x:{ticks:{color:'rgba(255,255,255,0.9)'}},y:{ticks:{color:'rgba(255,255,255,0.9)'}}}}
+  if (chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Income', data: dataIncome, backgroundColor: '#4dff88', borderRadius: 8 },
+        { label: 'Deductions', data: dataDeduction, backgroundColor: '#ff6b6b', borderRadius: 8 },
+        { label: 'Bonus', data: dataBonus, backgroundColor: '#ffd700', borderRadius: 8 },
+        { label: 'Net', data: dataNet, backgroundColor: '#9d50bb', borderRadius: 8 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: true } },
+      scales: {
+        x: { ticks: { color: 'rgba(255,255,255,0.9)' } },
+        y: { ticks: { color: 'rgba(255,255,255,0.9)' } }
+      }
+    }
   });
 }
 
 function renderAll(){
-  const entries=getEntriesForUser(USER_KEY);
+  const entries = getEntriesForUser(USER_KEY) || [];
   renderCards(entries);
   renderOverview(entries);
   renderChart(entries);
 }
 
-document.getElementById('backToDashboardBtn').addEventListener('click',()=>{window.location.href='dashboard.html';});
+// Back button
+document.getElementById('backToDashboardBtn').addEventListener('click', ()=> {
+  window.location.href = 'dashboard.html';
+});
 renderAll();
 
-// ----- Stars Animation -----
+/* -------------------------
+   Stars animation
+   ------------------------- */
 const starsCanvas = document.getElementById('stars');
 const ctxStars = starsCanvas.getContext('2d');
 let stars = [], mouse = {x:0,y:0,hovering:false};
-
 function initStars(){
   starsCanvas.width = window.innerWidth;
   starsCanvas.height = window.innerHeight;
-  stars=[];
-  const STAR_COUNT=Math.max(120,Math.floor((window.innerWidth*window.innerHeight)/6000));
-  for(let i=0;i<STAR_COUNT;i++){
-    stars.push({x:Math.random()*window.innerWidth,y:Math.random()*window.innerHeight,r:Math.random()*1.5+0.3,dx:(Math.random()-0.5)/1.5,dy:(Math.random()-0.5)/1.5});
+  stars = [];
+  const STAR_COUNT = Math.max(120, Math.floor((window.innerWidth*window.innerHeight)/6000));
+  for (let i=0;i<STAR_COUNT;i++){
+    stars.push({x:Math.random()*window.innerWidth, y:Math.random()*window.innerHeight, r:Math.random()*1.5+0.3, dx:(Math.random()-0.5)/1.5, dy:(Math.random()-0.5)/1.5});
   }
 }
-
 function drawStars(){
   ctxStars.clearRect(0,0,starsCanvas.width,starsCanvas.height);
   stars.forEach(s=>{
     ctxStars.beginPath();
     ctxStars.arc(s.x,s.y,s.r,0,Math.PI*2);
-    ctxStars.fillStyle='#fff';
+    ctxStars.fillStyle = '#fff';
     ctxStars.fill();
     ctxStars.closePath();
-    if(mouse.hovering){
+    if (mouse.hovering){
       const dx = s.x - mouse.x;
       const dy = s.y - mouse.y;
       const dist = Math.sqrt(dx*dx + dy*dy);
       const FORCE_RADIUS = 160;
-      if(dist < FORCE_RADIUS){
+      if (dist < FORCE_RADIUS){
         const angle = Math.atan2(dy, dx);
-        const force = (FORCE_RADIUS-dist)/6;
+        const force = (FORCE_RADIUS - dist) / 6;
         s.x += Math.cos(angle)*force;
         s.y += Math.sin(angle)*force;
       }
     }
     s.x += s.dx; s.y += s.dy;
-    if(s.x<0)s.x=window.innerWidth; if(s.x>window.innerWidth)s.x=0;
-    if(s.y<0)s.y=window.innerHeight; if(s.y>window.innerHeight)s.y=0;
+    if (s.x < 0) s.x = window.innerWidth; if (s.x > window.innerWidth) s.x = 0;
+    if (s.y < 0) s.y = window.innerHeight; if (s.y > window.innerHeight) s.y = 0;
   });
   requestAnimationFrame(drawStars);
 }
-
-starsCanvas.addEventListener('mousemove', e=>{mouse.x=e.clientX; mouse.y=e.clientY; mouse.hovering=true;});
-starsCanvas.addEventListener('mouseleave', ()=>{mouse.hovering=false;});
-window.addEventListener('resize', ()=>{initStars();});
+starsCanvas.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; mouse.hovering = true; });
+starsCanvas.addEventListener('mouseleave', ()=>{ mouse.hovering = false; });
+window.addEventListener('resize', ()=>{ initStars(); });
 initStars(); drawStars();
 
-// ----- Card Double Click Edit -----
-cardsEl.addEventListener('dblclick', ev=>{
-  const card = ev.target.closest('.card');
-  if(!card) return;
+/* -------------------------
+   Double-click / double-tap edit panel (open & close)
+   - dblclick for desktop
+   - touch double-tap support for mobile
+   - click outside to close
+   ------------------------- */
+let lastTouchTime = 0;
+cardsEl.addEventListener('dblclick', handleCardOpenClose);
+
+cardsEl.addEventListener('touchend', (ev) => {
+  const now = Date.now();
+  const elapsed = now - lastTouchTime;
+  lastTouchTime = now;
+  // treat as double-tap if second tap occurs within 350ms
+  if (elapsed > 0 && elapsed < 350) {
+    // find card under touch
+    const touch = ev.changedTouches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (!el) return;
+    const card = el.closest('.card');
+    if (!card) return;
+    handleCardOpenClose({ target: card, clientX: touch.clientX, clientY: touch.clientY, isTouch: true });
+    ev.preventDefault();
+  }
+});
+
+function handleCardOpenClose(ev){
+  // support passing either a MouseEvent/Touch-like (with target) or the real event (dblclick)
+  const el = ev.target && ev.target.closest ? ev.target.closest('.card') : null;
+  if (!el) return;
+  const card = el;
   const idx = Number(card.dataset.idx);
+  const existingPanel = card.querySelector('.edit-panel');
+  if (existingPanel){
+    existingPanel.remove(); // double-tap to close
+    return;
+  }
+  // remove other panels so only one open at a time
+  document.querySelectorAll('.edit-panel').forEach(p => p.remove());
+
   const entries = getEntriesForUser(USER_KEY);
   const e = entries[idx];
-  let panel = card.querySelector('.edit-panel');
-  if(panel){ panel.remove(); return; }
-  panel = document.createElement('div');
-  panel.className='edit-panel open';
-  panel.innerHTML=`
+
+  const panel = document.createElement('div');
+  panel.className = 'edit-panel open';
+  panel.innerHTML = `
     <div class="edit-grid">
       <div class="edit-field"><label>Base</label><input type="number" value="${e.originalAmount||0}" data-key="originalAmount"></div>
       <div class="edit-field"><label>Mistake</label><input type="number" value="${e.mistake||0}" data-key="mistake"></div>
@@ -297,14 +399,35 @@ cardsEl.addEventListener('dblclick', ev=>{
     </div>
   `;
   card.appendChild(panel);
-  panel.querySelector('.cancel').addEventListener('click',()=>panel.remove());
-  panel.querySelector('.del').addEventListener('click',()=>{
-    if(confirm('Delete this entry?')){deleteEntryForUser(USER_KEY,idx);renderAll();}
+
+  panel.querySelector('.cancel').addEventListener('click', () => panel.remove());
+  panel.querySelector('.del').addEventListener('click', () => {
+    if (confirm('Delete this entry?')) {
+      deleteEntryForUser(USER_KEY, idx);
+      renderAll();
+    }
   });
-  panel.querySelector('.save').addEventListener('click',()=>{
-    panel.querySelectorAll('input').forEach(input=>{e[input.dataset.key]=Number(input.value);});
-    updateEntryForUser(USER_KEY,idx,e); renderAll();
+  panel.querySelector('.save').addEventListener('click', () => {
+    panel.querySelectorAll('input').forEach(input => {
+      // keep types
+      e[input.dataset.key] = Number(input.value);
+    });
+    updateEntryForUser(USER_KEY, idx, e);
+    renderAll();
   });
+}
+
+// click outside to close edit panel
+document.addEventListener('click', (ev) => {
+  const insideCardOrPanel = ev.target.closest('.card') || ev.target.closest('.edit-panel');
+  if (!insideCardOrPanel){
+    document.querySelectorAll('.edit-panel').forEach(p => p.remove());
+  }
+});
+
+// optional: keyboard ESC to close
+document.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Escape') document.querySelectorAll('.edit-panel').forEach(p => p.remove());
 });
 </script>
 </body>
