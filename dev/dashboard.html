@@ -61,11 +61,8 @@
       background: rgba(0,0,0,0.5);
       color:#fff;
       font-weight:600;
-      appearance: none;
-      -webkit-appearance: none;
     }
 
-    /* dropdown arrow color */
     .form-grid select {
       background-image: linear-gradient(45deg, transparent 50%, #fff 50%),
                         linear-gradient(135deg, #fff 50%, transparent 50%),
@@ -73,8 +70,8 @@
       background-position: calc(100% - 20px) calc(50% - 5px),
                            calc(100% - 15px) calc(50% - 5px),
                            0 0;
-      background-size: 5px 5px, 5px 5px, 100% 100%;
-      background-repeat: no-repeat;
+      background-size: 5px 5px,5px 5px,100% 100%;
+      background-repeat:no-repeat;
     }
 
     .button-row {
@@ -96,10 +93,8 @@
       box-shadow:0 0 18px rgba(157,80,187,0.55);
     }
     .button-row button:hover { transform:translateY(-3px); box-shadow:0 0 28px rgba(157,80,187,0.7); }
-
   </style>
 </head>
-
 <body>
   <canvas id="stars"></canvas>
 
@@ -137,22 +132,23 @@
 
   <script src="dataStore.js"></script>
   <script>
+    // check login
     const currentUser = localStorage.getItem("lastUser");
-    if(!currentUser) window.location.href = "../login.html";
+    if(!currentUser) window.location.href = "../index.html"; // redirect if not logged in
     document.getElementById("userName").innerText = currentUser;
 
-    // Year dropdown
+    // populate year dropdown
     const yearSelect = document.getElementById("year");
     const currentYear = new Date().getFullYear();
-    for(let y=currentYear-5;y<=currentYear+5;y++){
+    for(let y=currentYear-5; y<=currentYear+5; y++){
       const opt = document.createElement("option");
-      opt.value=y; opt.textContent=y;
+      opt.value = y;
+      opt.textContent = y;
       if(y===currentYear) opt.selected=true;
       yearSelect.appendChild(opt);
     }
 
     function saveEntry(){
-      // properly fetch elements
       const type = document.getElementById("type").value;
       const amount = parseFloat(document.getElementById("amount").value)||0;
       const desc = document.getElementById("desc").value;
@@ -173,41 +169,61 @@
         month, year, mistake, dayoff: dayoffDays, system, loan, bonus
       };
 
-      // save to dataStore.js
       addEntryForUser(currentUser, entry);
-
       alert("Entry saved!");
 
       // reset form
-      document.querySelectorAll(".form-grid input").forEach(i=>i.value="");
-      document.querySelectorAll(".form-grid select").forEach(s=>s.selectedIndex=0);
+      document.getElementById("amount").value = "";
+      document.getElementById("desc").value = "";
+      document.getElementById("mistake").value = "";
+      document.getElementById("dayoff").value = "";
+      document.getElementById("system").value = "";
+      document.getElementById("loan").value = "";
+      document.getElementById("bonus").value = "";
+      document.getElementById("type").selectedIndex = 0;
+      document.getElementById("month").selectedIndex = new Date().getMonth();
+      document.getElementById("year").value = currentYear;
     }
 
     function goToSummary(){ window.location.href="summary.html"; }
-    function logout(){ localStorage.removeItem("lastUser"); window.location.href="../login.html"; }
 
-    // ----- Stars Animation -----
-    const starsCanvas=document.getElementById("stars");
-    const ctx=starsCanvas.getContext("2d");
-    let stars=[];
+    function logout(){
+      localStorage.removeItem("lastUser");
+      window.location.href = "../index.html"; // redirects to root login page
+    }
+
+    // stars animation
+    const starsCanvas = document.getElementById("stars");
+    const ctx = starsCanvas.getContext("2d");
+    let stars = [];
+
     function initStars(){
-      starsCanvas.width=window.innerWidth;
-      starsCanvas.height=window.innerHeight;
+      starsCanvas.width = window.innerWidth;
+      starsCanvas.height = window.innerHeight;
       stars=[];
       for(let i=0;i<150;i++){
-        stars.push({x:Math.random()*window.innerWidth, y:Math.random()*window.innerHeight, r:Math.random()*1.5+0.3, dx:(Math.random()-0.5)/1.5, dy:(Math.random()-0.5)/1.5});
+        stars.push({
+          x:Math.random()*window.innerWidth,
+          y:Math.random()*window.innerHeight,
+          r:Math.random()*1.5+0.3,
+          dx:(Math.random()-0.5)/1.5,
+          dy:(Math.random()-0.5)/1.5
+        });
       }
     }
+
     let mouse={x:0,y:0,hovering:false};
     starsCanvas.addEventListener("mousemove", e=>{mouse.x=e.clientX; mouse.y=e.clientY; mouse.hovering=true;});
     starsCanvas.addEventListener("mouseleave", ()=>{mouse.hovering=false;});
     window.addEventListener("resize", initStars);
+
     function drawStars(){
       ctx.clearRect(0,0,starsCanvas.width,starsCanvas.height);
       stars.forEach(s=>{
         ctx.beginPath();
         ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
         ctx.fillStyle="#fff"; ctx.fill(); ctx.closePath();
+
         if(mouse.hovering){
           const dx=s.x-mouse.x;
           const dy=s.y-mouse.y;
@@ -219,13 +235,16 @@
             s.x+=Math.cos(angle)*force; s.y+=Math.sin(angle)*force;
           }
         }
+
         s.x+=s.dx; s.y+=s.dy;
         if(s.x<0)s.x=window.innerWidth; if(s.x>window.innerWidth)s.x=0;
         if(s.y<0)s.y=window.innerHeight; if(s.y>window.innerHeight)s.y=0;
       });
       requestAnimationFrame(drawStars);
     }
-    initStars(); drawStars();
+
+    initStars();
+    drawStars();
   </script>
 </body>
 </html>
