@@ -23,12 +23,14 @@ canvas#stars{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointe
 h1{margin:0;font-size:26px;font-weight:800;color:#fff;text-shadow:0 4px 18px rgba(0,0,0,0.6);}
 #usernameDisplay{font-size:18px;font-weight:800;padding:8px 14px;border-radius:12px;background:linear-gradient(120deg,#a2a0ff,#6ee0ff,#a566ff,#ffd1ff);-webkit-background-clip:text;background-clip:text;color:transparent;animation: usernameShift 6s linear infinite;}
 @keyframes usernameShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
 .overview{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--gap);margin:12px 0 20px;align-items:stretch}
 .stat-card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:var(--card-radius);padding:12px;border:1px solid rgba(255,255,255,0.06);box-shadow:0 8px 26px rgba(0,0,0,0.6);display:flex;flex-direction:column;justify-content:center;min-height:88px;transition:transform .22s,box-shadow .22s;}
 .stat-card .title{font-size:13px;font-weight:800;color:rgba(255,255,255,0.9);}
 .stat-card .value{margin-top:8px;font-weight:900;font-size:20px;}
 .valueInner{display:inline-block;background:linear-gradient(90deg,var(--accent-a),var(--accent-b),var(--pos));background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation: valShift 4s linear infinite;}
 @keyframes valShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;align-items:start;margin-top:12px;}
 .card{background:var(--glass-strong);border-radius:var(--card-radius);padding:14px;border:1px solid rgba(255,255,255,0.06);box-shadow:0 8px 30px rgba(0,0,0,0.6);transition:transform .26s,box-shadow .26s;position:relative;overflow:visible;cursor:pointer;}
 .card:hover{transform:translateY(-8px);box-shadow:0 22px 60px rgba(157,80,255,0.09);}
@@ -42,6 +44,7 @@ h1{margin:0;font-size:26px;font-weight:800;color:#fff;text-shadow:0 4px 18px rgb
 .val.gold{color:var(--gold);}
 .sub{font-size:12px;color:rgba(255,255,255,0.55);margin-top:4px;}
 .separator{grid-column:span 2;height:1px;background:rgba(255,255,255,0.1);margin:6px 0;}
+
 .edit-panel{margin-top:12px;border-radius:10px;overflow:hidden;transition:max-height .30s ease,opacity .30s ease,padding .3s linear;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));border:1px solid rgba(255,255,255,0.03);padding:12px;max-height:0;opacity:0;pointer-events:none;}
 .edit-panel.open{max-height:600px;opacity:1;pointer-events:auto;}
 .edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;}
@@ -53,6 +56,25 @@ h1{margin:0;font-size:26px;font-weight:800;color:#fff;text-shadow:0 4px 18px rgb
 .btn.cancel{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);}
 .btn.del{background:linear-gradient(90deg,var(--neg),#ff3b3b);color:white;}
 .chart-wrap{margin-top:20px;padding:12px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.01));border-radius:12px;border:1px solid rgba(255,255,255,0.03);}
+
+/* ---- Back to Dashboard button animation ---- */
+.backBtn{
+  padding:10px 18px;
+  font-weight:800;
+  font-size:14px;
+  border:none;
+  border-radius:12px;
+  cursor:pointer;
+  background:linear-gradient(90deg,#6e48aa,#9d50bb);
+  color:white;
+  transition:transform .3s, box-shadow .3s, background .3s;
+}
+.backBtn:hover{
+  transform:translateY(-3px) scale(1.05);
+  box-shadow:0 12px 30px rgba(157,80,255,0.4);
+  background:linear-gradient(90deg,#9d50bb,#6e48aa);
+}
+
 @media(max-width:900px){.wrap{padding:16px}.card-grid{grid-template-columns:1fr 1fr}.edit-grid{grid-template-columns:1fr;}}
 @media(max-width:560px){.top-row{flex-direction:column;align-items:flex-start;gap:8px}.stat-card .value{font-size:18px}.card{padding:12px}}
 </style>
@@ -61,7 +83,7 @@ h1{margin:0;font-size:26px;font-weight:800;color:#fff;text-shadow:0 4px 18px rgb
 <canvas id="stars"></canvas>
 <div id="asteroidLayer"></div>
 <div class="wrap">
-  <div class="top-row">
+  <div class="top-row" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
     <h1>Summary</h1>
     <div id="usernameDisplay"></div>
     <button class="backBtn" id="backToDashboardBtn">← Back to Dashboard</button>
@@ -74,15 +96,12 @@ h1{margin:0;font-size:26px;font-weight:800;color:#fff;text-shadow:0 4px 18px rgb
 
 <script src="dataStore.js"></script>
 <script>
-// ----- Global -----
 const USER_KEY = localStorage.getItem('lastUser') || 'User';
 document.getElementById('usernameDisplay').textContent = USER_KEY;
 
-// ----- Utilities -----
 function daysInMonth(monthName, year){const d=new Date(`${monthName} 1, ${year}`);return isNaN(d)?30:new Date(year,d.getMonth()+1,0).getDate();}
 function formatCurrency(val){return `$${Number(val||0).toFixed(2)}`;}
 
-// ----- Render Cards -----
 const cardsEl = document.getElementById('cards');
 function renderCards(entries){
   cardsEl.innerHTML = '';
@@ -98,7 +117,8 @@ function renderCards(entries){
     const mdays = daysInMonth(month,year);
     const daySalary = base/mdays;
     const hourSalary = daySalary/8;
-    const deduction = mistake + (daySalary*dayoff) + system + loan;
+    const dayOffDeduction = daySalary*dayoff;
+    const deduction = mistake + dayOffDeduction + system + loan;
     const net = (e.type==='Income')?base-deduction+bonus:-base;
 
     const cardHTML = `
@@ -108,6 +128,7 @@ function renderCards(entries){
           <div class="label">Base</div><div class="val ${base>0?'green':''}">${formatCurrency(base)}</div>
           <div class="label">Mistake</div><div class="val ${mistake>0?'red':''}">${formatCurrency(mistake)}</div>
           <div class="label">Day Off</div><div class="val ${dayoff>0?'red':''}">${dayoff} d</div>
+          <div class="label">Day Off Deduction</div><div class="val ${dayOffDeduction>0?'red':''}">${formatCurrency(dayOffDeduction)}</div>
           <div class="label">System</div><div class="val ${system>0?'red':''}">${formatCurrency(system)}</div>
           <div class="label">Loan</div><div class="val ${loan>0?'red':''}">${formatCurrency(loan)}</div>
           <div class="label">Bonus</div><div class="val ${bonus>0?'gold':''}">${formatCurrency(bonus)}</div>
@@ -121,7 +142,6 @@ function renderCards(entries){
   });
 }
 
-// ----- Overview, Chart, RenderAll -----
 function renderOverview(entries){
   const income = entries.filter(e=>e.type==='Income').reduce((a,b)=>a+Number(b.originalAmount||0),0);
   const deductions = entries.reduce((a,b)=>{
@@ -199,10 +219,11 @@ function renderAll(){
   renderOverview(entries);
   renderChart(entries);
 }
+
 document.getElementById('backToDashboardBtn').addEventListener('click',()=>{window.location.href='dashboard.html';});
 renderAll();
 
-// ----- Stars Animation with Forcing -----
+// ----- Stars Animation -----
 const starsCanvas = document.getElementById('stars');
 const ctxStars = starsCanvas.getContext('2d');
 let stars = [], mouse = {x:0,y:0,hovering:false};
@@ -213,13 +234,7 @@ function initStars(){
   stars=[];
   const STAR_COUNT=Math.max(120,Math.floor((window.innerWidth*window.innerHeight)/6000));
   for(let i=0;i<STAR_COUNT;i++){
-    stars.push({
-      x:Math.random()*window.innerWidth,
-      y:Math.random()*window.innerHeight,
-      r:Math.random()*1.5+0.3,
-      dx:(Math.random()-0.5)/1.5,
-      dy:(Math.random()-0.5)/1.5
-    });
+    stars.push({x:Math.random()*window.innerWidth,y:Math.random()*window.innerHeight,r:Math.random()*1.5+0.3,dx:(Math.random()-0.5)/1.5,dy:(Math.random()-0.5)/1.5});
   }
 }
 
@@ -231,13 +246,11 @@ function drawStars(){
     ctxStars.fillStyle='#fff';
     ctxStars.fill();
     ctxStars.closePath();
-
-    // Force effect
     if(mouse.hovering){
       const dx = s.x - mouse.x;
       const dy = s.y - mouse.y;
       const dist = Math.sqrt(dx*dx + dy*dy);
-      const FORCE_RADIUS = 160; // bigger radius
+      const FORCE_RADIUS = 160;
       if(dist < FORCE_RADIUS){
         const angle = Math.atan2(dy, dx);
         const force = (FORCE_RADIUS-dist)/6;
@@ -245,7 +258,6 @@ function drawStars(){
         s.y += Math.sin(angle)*force;
       }
     }
-
     s.x += s.dx; s.y += s.dy;
     if(s.x<0)s.x=window.innerWidth; if(s.x>window.innerWidth)s.x=0;
     if(s.y<0)s.y=window.innerHeight; if(s.y>window.innerHeight)s.y=0;
@@ -258,7 +270,7 @@ starsCanvas.addEventListener('mouseleave', ()=>{mouse.hovering=false;});
 window.addEventListener('resize', ()=>{initStars();});
 initStars(); drawStars();
 
-// ----- Card Double Click Edit Toggle -----
+// ----- Card Double Click Edit -----
 cardsEl.addEventListener('dblclick', ev=>{
   const card = ev.target.closest('.card');
   if(!card) return;
@@ -266,12 +278,7 @@ cardsEl.addEventListener('dblclick', ev=>{
   const entries = getEntriesForUser(USER_KEY);
   const e = entries[idx];
   let panel = card.querySelector('.edit-panel');
-
-  if(panel){
-    panel.remove(); // toggle off
-    return;
-  }
-
+  if(panel){ panel.remove(); return; }
   panel = document.createElement('div');
   panel.className='edit-panel open';
   panel.innerHTML=`
@@ -290,7 +297,6 @@ cardsEl.addEventListener('dblclick', ev=>{
     </div>
   `;
   card.appendChild(panel);
-
   panel.querySelector('.cancel').addEventListener('click',()=>panel.remove());
   panel.querySelector('.del').addEventListener('click',()=>{
     if(confirm('Delete this entry?')){deleteEntryForUser(USER_KEY,idx);renderAll();}
